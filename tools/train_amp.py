@@ -12,6 +12,7 @@ import json
 import argparse
 import numpy as np
 from tabulate import tabulate
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -30,7 +31,7 @@ from lib.logger import setup_logger, print_log_msg
 
 
 
-## fix all random seeds
+# # fix all random seeds
 #  torch.manual_seed(123)
 #  torch.cuda.manual_seed(123)
 #  np.random.seed(123)
@@ -148,7 +149,7 @@ def train():
         warmup_ratio=0.1, warmup='exp', last_epoch=-1,)
 
     ## train loop
-    for it, (im, lb) in enumerate(dl):
+    for it, (im, lb) in tqdm(enumerate(dl)):
         im = im.cuda()
         lb = lb.cuda()
 
@@ -178,7 +179,13 @@ def train():
                 it, cfg.max_iter, lr, time_meter, loss_meter,
                 loss_pre_meter, loss_aux_meters)
         lr_schdr.step()
-
+        
+        if dist.get_rank() == 0:
+            if (it+1) % 5000 == 0:
+                save_pth = osp.join(cfg.respth, f'iter_{it}.pth')
+                state = net.module.state_dict()
+                torch.save(state, save_pth)
+        
     ## dump the final model and evaluate the result
     save_pth = osp.join(cfg.respth, 'model_final.pth')
     logger.info('\nsave models to {}'.format(save_pth))

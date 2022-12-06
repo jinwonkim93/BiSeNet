@@ -2,6 +2,8 @@
 import os
 import os.path as osp
 import argparse
+from pathlib import Path
+from sklearn.model_selection import train_test_split
 
 
 def gen_coco():
@@ -76,6 +78,44 @@ def gen_ade20k():
             fw.write('\n'.join(lines))
 
 
+def gen_facesynthetic():
+    '''
+        root_path:
+            |- dataset-100000
+                |- 000000.png
+                |- 000000_seg.png
+                
+    '''
+    root_path = './datasets/facesynthetic/'
+    save_path = './datasets/facesynthetic/'
+    folder_map = {'train': 'dataset_100000'}
+    mode = 'train'
+    folder = folder_map[mode]
+    im_root = osp.join(root_path, f'{folder}')
+    files = list(Path(im_root).glob("*.png"))
+
+    print(len(files)) #image, seg image total 20k
+    ims = []
+    lbs = []
+    for file in files:
+        if "seg" in file.name:
+            lbs.append(file)
+        else:
+            ims.append(file)
+
+    im_names = [el.stem for el in ims]
+    lb_names = [el.stem.replace('_seg', '') for el in lbs]
+    common_names = list(set(im_names) & set(lb_names))
+    lines = [
+        f'{folder}/{name}.png,{folder}/{name}_seg.png'
+        for name in common_names
+    ]
+    lines_train, lines_val = train_test_split(lines, test_size=0.03, random_state=2022)
+    with open(f'{save_path}/{mode}.txt', 'w') as fw:
+        fw.write('\n'.join(lines_train))
+    with open(f'{save_path}/val.txt', 'w') as fw:
+        fw.write('\n'.join(lines_val))
+
 
 if __name__ == '__main__':
     parse = argparse.ArgumentParser()
@@ -86,3 +126,5 @@ if __name__ == '__main__':
         gen_coco()
     elif args.dataset == 'ade20k':
         gen_ade20k()
+    elif args.dataset == 'facesynthetic':
+        gen_facesynthetic()
